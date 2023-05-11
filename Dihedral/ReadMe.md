@@ -21,7 +21,7 @@ Install latest version of python from https://www.oracle.com/java/technologies/d
 
 ``` bash
 $ git clone https://github.com/Trimendously/NonAbelian-Groups.git
-$ cd NonAbelian\Dihedral
+$ cd NonAbelian-Groups\Dihedral
 $ javac dihedral.java
 $ java dihedral
 ```
@@ -31,12 +31,12 @@ Dihedral Groups are the group of symmetries of a geometrical object.
 
 They are a prime example of non-abelian (non-commutative) groups when n > 3 and can be defined as
 
-D<sub>n<sub> = {e,$\rho$,...,$\rho^{n-1}$,$\mu$,$\rho \mu$,...,$\rho^{n-1} \mu$}
+D<sub>n</sub> = {e,ρ,...,ρ<sup>n-1</sup>,μ,ρμ,...,ρ<sup>n-1</sup> μ}
 
 ## Usage
 Prompts the user to specfiy an image stored locally on their computer to identify what degree dihedral group the image can be categorized as.
 
-(Accepts '.gif','.jpeg','.jpg','.png' file formats)
+(Accepts .gif , .jpeg , .jpg , .png  file formats)
 
 Currently only supports up to D<sub>360<sub>
 
