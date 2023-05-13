@@ -181,8 +181,6 @@ public class dihedral
      *
      * @param image Base image
      * @param degrees Degrees by which to rotate
-     * @param flipHorizontal Whether or not to reflect about the x-axis
-     * @param flipVertical Whether or not to reflect about the y-axis
      * @return new image
      */
     public static BufferedImage rotate(BufferedImage image, double degrees) 
@@ -212,12 +210,9 @@ public class dihedral
     }
 
         /**
-     * Performs a rotation by n degrees on an image.
+     * Performs a reflection along the y-axis on an image.
      *
      * @param image Base image
-     * @param degrees Degrees by which to rotate
-     * @param flipHorizontal Whether or not to reflect about the x-axis
-     * @param flipVertical Whether or not to reflect about the y-axis
      * @return new image
      */
     public static BufferedImage reflect(BufferedImage image) 
