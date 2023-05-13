@@ -41,10 +41,11 @@ Prompts the user to specfiy an image stored locally on their computer to identif
 Currently only supports up to D<sub>360<sub>
 
 ## Future
-- [ ] Fix rotation (visually same image but rgb for specific pixels are different)
-- [ ] Implement reflections properly
+- [x] Fix rotation (visually same image but rgb for specific pixels are different)
+- [x] Implement reflections properly
 - [ ] Save all states of rotations in 1 file
 - [ ] Add grid overlay to show rotations
+- [ ] Add GUI with slider to visually see difference between two images (similar to https://www.diffchecker.com/image-compare/)
 - [ ] Add 3d dihedral support
 
 ## Contributing

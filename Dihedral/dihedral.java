@@ -21,7 +21,8 @@ public class dihedral
     {
         int rotations = 0, reflections = 0, elements = 0; // Number of elements in the group
         int result; // Store the file path
-        boolean areEqual = false; // Checks if 2 imgs are the same
+        boolean rotational_symmetry = false; // Checks if a rotation(s) return a img back to identity
+        boolean reflectional_symmetry = false; // Checks if a reflection(s) return a mg back to identity
 
         File outputfile = null;
 
@@ -58,28 +59,44 @@ public class dihedral
                 outputfile = new File(newDirectory + "/base" +".png");
                 ImageIO.write(img, "png", outputfile);   
                 
-                for (int i = 0; i < 360; i++)
+                for (int i = 0; i < 360; i+= 90)
                 {
                     int padding = calculatePadding(img, i);
                     BufferedImage temp = padImage(img, padding);
-                    BufferedImage img_rotated = linear_transform(temp,i,false,false);
+                    BufferedImage img_rotated = rotate(temp,i);
                     img_rotated = cropImage(img_rotated,padding);
-                    
+                    BufferedImage img_rotated_then_reflected = reflect(img_rotated);
                     // Compares the images
-                    System.out.println("\n\nDegree "+ i + " rotation: \n");
-                    areEqual = compareImages(img, img_rotated, 5,i);
-
+                    System.out.println("\n\nRotation by "+ i + " degrees: \n");
+                    rotational_symmetry = compareImages(img, img_rotated, 5);
+                    System.out.println("\n\nRotation by "+ i + " degrees and then reflected across the y axis: \n");
+                    reflectional_symmetry = compareImages(img, img_rotated_then_reflected, 5);
                     // Only if the images are the same (very close)
-                    if (areEqual)
+                    if (rotational_symmetry)
                     {
                         rotations++;
 
                         // Save the rotated image to the new directory
                         outputfile = new File(newDirectory + "/rotated_" + i +"_degress.png");
                         ImageIO.write(img_rotated, "png", outputfile);
-                    }        
+                    }
+                    if (reflectional_symmetry)
+                    {
+                        reflections++;
+
+                        // Save the rotated image to the new directory
+                        outputfile = new File(newDirectory + "/rotated_" + i +"_degress_&_reflected.png");
+                        ImageIO.write(img_rotated_then_reflected, "png", outputfile);
+                    }
+
+                    outputfile = new File(newDirectory + "/rotated_" + i +"_degress.png");
+                    ImageIO.write(img_rotated, "png", outputfile);
+                    outputfile = new File(newDirectory + "/rotated_" + i +"_degress_&_reflected.png");
+                    ImageIO.write(img_rotated_then_reflected, "png", outputfile);
+                            
                 }
-                System.out.println("The image has " + rotations+ " rotation(s) that returns it to the identity.");     
+                System.out.println("The image has rotational symmetry of degree: " + rotations);
+                System.out.println("The image has reflectional symmetry of degree: " + reflections);     
             } 
             catch (IOException e) 
             {
@@ -97,7 +114,7 @@ public class dihedral
      * @param tolerance % of max avg color difference between pixels
      * @return true if the images are the same, false otherwise
      */
-    public static boolean compareImages(BufferedImage img1, BufferedImage img2, double tolerance,int degree) 
+    public static boolean compareImages(BufferedImage img1, BufferedImage img2, double tolerance) 
     {
         int width = img1.getWidth();
         int height = img1.getHeight();
@@ -146,7 +163,6 @@ public class dihedral
         // Calculates the average difference per pixel and compares to the tolerance
         double percOff = (double) diff_counter / (numPixels-edge_cases);
         double avgDiff = (double) totalDiff / (width * height);
-
         if (avgDiff <= tolerance)
         {
             System.out.println("Error: " + avgDiff + " %");
@@ -160,10 +176,8 @@ public class dihedral
             return false;
     }
 
-
-
     /**
-     * Performs a specified linear transformation on an image.
+     * Performs a rotation by n degrees on an image.
      *
      * @param image Base image
      * @param degrees Degrees by which to rotate
@@ -171,7 +185,7 @@ public class dihedral
      * @param flipVertical Whether or not to reflect about the y-axis
      * @return new image
      */
-    public static BufferedImage linear_transform(BufferedImage image, double degrees, boolean flipHorizontal, boolean flipVertical) 
+    public static BufferedImage rotate(BufferedImage image, double degrees) 
     {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -181,19 +195,45 @@ public class dihedral
 
         Graphics2D g2d = transparentImage.createGraphics();
         AffineTransform transform = AffineTransform.getRotateInstance(radians, width / 2, height / 2);
+        
         g2d.setTransform(transform);
         g2d.drawImage(image, 0, 0, null);
         g2d.dispose();
     
-        BufferedImage finalImage = new BufferedImage(transparentImage.getWidth(), transparentImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D finalG2d = finalImage.createGraphics();
+        BufferedImage rotatedImage = new BufferedImage(transparentImage.getWidth(), transparentImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D finalG2d = rotatedImage.createGraphics();
         finalG2d.setComposite(AlphaComposite.Clear); // Set composite to clear the background
-        finalG2d.fillRect(0, 0, finalImage.getWidth(), finalImage.getHeight());
+        finalG2d.fillRect(0, 0, rotatedImage.getWidth(), rotatedImage.getHeight());
         finalG2d.setComposite(AlphaComposite.Src); // Set composite to draw pixels normally
         finalG2d.drawImage(transparentImage, 0, 0, null);
         finalG2d.dispose();
 
-        return finalImage;
+        return rotatedImage;
+    }
+
+        /**
+     * Performs a rotation by n degrees on an image.
+     *
+     * @param image Base image
+     * @param degrees Degrees by which to rotate
+     * @param flipHorizontal Whether or not to reflect about the x-axis
+     * @param flipVertical Whether or not to reflect about the y-axis
+     * @return new image
+     */
+    public static BufferedImage reflect(BufferedImage image) 
+    {
+        int width = image.getWidth();
+        int height = image.getHeight();
+  
+        BufferedImage reflectedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    
+        AffineTransform transform = new AffineTransform(-1, 0, 0, 1, width, 0);
+        Graphics2D g2d = reflectedImage.createGraphics();
+        g2d.setTransform(transform);
+        g2d.drawImage(image, 0, 0, null);
+        g2d.dispose();
+    
+        return reflectedImage; 
     }
 
     /**
@@ -305,7 +345,8 @@ public class dihedral
             for (File file : files)
                 if (!file.isDirectory())
                     file.delete();  
-    }
+    }   
+
 
     
 }
