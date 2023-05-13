@@ -1,6 +1,7 @@
 // For selecting the image files
 import java.io.File;
 import java.io.IOException;
+
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
@@ -12,7 +13,7 @@ import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.Color;
-
+import java.awt.AlphaComposite;
 
 public class dihedral 
 {
@@ -40,7 +41,7 @@ public class dihedral
             System.out.println("Image file has been selected  ( " + file1.getAbsolutePath() + " )");
 
             try 
-            {
+            { 
                 // Loads the image
                 BufferedImage img = ImageIO.read(file1);
 
@@ -53,23 +54,30 @@ public class dihedral
                 else
                     dir.mkdirs();
                 
-                for (int i = 0; i < 360; i+=60 )
+                    // Resaves base image
+                outputfile = new File(newDirectory + "/base" +".png");
+                ImageIO.write(img, "png", outputfile);   
+                
+                for (int i = 0; i < 360; i++)
                 {
                     int padding = calculatePadding(img, i);
                     BufferedImage temp = padImage(img, padding);
                     BufferedImage img_rotated = linear_transform(temp,i,false,false);
                     img_rotated = cropImage(img_rotated,padding);
+                    
                     // Compares the images
-                    areEqual = compareImages(img, img_rotated, 60);
+                    System.out.println("\n\nDegree "+ i + " rotation: \n");
+                    areEqual = compareImages(img, img_rotated, 5,i);
+
+                    // Only if the images are the same (very close)
                     if (areEqual)
                     {
                         rotations++;
+
                         // Save the rotated image to the new directory
                         outputfile = new File(newDirectory + "/rotated_" + i +"_degress.png");
                         ImageIO.write(img_rotated, "png", outputfile);
-                    } 
-                    outputfile = new File(newDirectory + "/rotated_" + i +"_degress.png");
-                    ImageIO.write(img_rotated, "png", outputfile);           
+                    }        
                 }
                 System.out.println("The image has " + rotations+ " rotation(s) that returns it to the identity.");     
             } 
@@ -89,36 +97,70 @@ public class dihedral
      * @param tolerance % of max avg color difference between pixels
      * @return true if the images are the same, false otherwise
      */
-    public static boolean compareImages(BufferedImage img1, BufferedImage img2, double tolerance) 
+    public static boolean compareImages(BufferedImage img1, BufferedImage img2, double tolerance,int degree) 
     {
-        if (img1.getWidth() != img2.getWidth() || img1.getHeight() != img2.getHeight()) 
-            return false;
-        double totalDiff = 0.0;
-        int numPixels = 0;
-        for (int x = 0; x < img1.getWidth(); x++) 
+        int width = img1.getWidth();
+        int height = img1.getHeight();
+        double totalDiff = 0.0; // # total difference in pixel values
+        int numPixels = 0; // total # of pixels
+        int diff_counter = 0 ; // # of different pixels
+        int edge_cases = 0; // # of pixels where image was cuttoff
+
+        for (int x = 0; x < width; x++) 
         {
-            for (int y = 0; y < img1.getHeight(); y++) 
+            for (int y = 0; y < height; y++) 
             {
                 int rgb1 = img1.getRGB(x,y);
                 int rgb2 = img2.getRGB(x,y);
 
-            // Calculate the color difference between the pixels
-            int redDiff = Math.abs((rgb1 >> 16) & 0xFF - (rgb2 >> 16) & 0xFF);
-            int greenDiff = Math.abs((rgb1 >> 8) & 0xFF - (rgb2 >> 8) & 0xFF);
-            int blueDiff = Math.abs(rgb1 & 0xFF - rgb2 & 0xFF);
-            double pixelDiff = (redDiff + greenDiff + blueDiff) / 3.0;
+                int red1 = (rgb1 >> 16) & 0xFF;
+                int green1 = (rgb1 >> 8) & 0xFF;
+                int blue1 = rgb1 & 0xFF;
+                int alpha1 = (rgb1 >> 24) & 0xFF;
 
-            // Accumulate the total difference and pixel count
-            totalDiff += pixelDiff;
-            numPixels++;
+                int red2 = (rgb2 >> 16) & 0xFF;
+                int green2 = (rgb2 >> 8) & 0xFF;
+                int blue2 = rgb2 & 0xFF;
+                int alpha2 = (rgb2 >> 24) & 0xFF;
+
+                if ((alpha1 != 0) && (alpha2 == 0))   // Is transparent    
+                    edge_cases++;
+                else if (rgb1 != rgb2)
+                {
+                    diff_counter++;
+                    
+                    // Calculates the color difference between the pixels
+                    int redDiff = Math.abs(red1-red2);
+                    int greenDiff = Math.abs(green1-green2);
+                    int blueDiff = Math.abs(blue1-blue2);
+                    double pixelDiff = (redDiff + greenDiff + blueDiff) / 3.0;
+
+                    // The total pixel difference
+                    totalDiff += pixelDiff;
+                }
+                numPixels++;
+                
             }
         }
+      
+        // Calculates the average difference per pixel and compares to the tolerance
+        double percOff = (double) diff_counter / (numPixels-edge_cases);
+        double avgDiff = (double) totalDiff / (width * height);
 
-        // Calculate the average difference per pixel and compare to the tolerance
-        double avgDiff = totalDiff / numPixels;
-        System.out.println("Error: " + avgDiff);
-        return avgDiff <= tolerance;
+        if (avgDiff <= tolerance)
+        {
+            System.out.println("Error: " + avgDiff + " %");
+            System.out.println("Percent of Pixels different (that are included): " + percOff*100 + " %");
+            System.out.println("Total Pixels: " + (width * height));
+            System.out.println("Edge Cases: " + edge_cases);
+            System.out.println("Total Number of Diferent Pixels: " + diff_counter);
+            return true;
+        }
+        else
+            return false;
     }
+
+
 
     /**
      * Performs a specified linear transformation on an image.
@@ -135,17 +177,23 @@ public class dihedral
         int height = image.getHeight();
         double radians = Math.toRadians(degrees);
 
-        AffineTransform transform = new AffineTransform();
-        transform.translate(width / 2, height / 2);
-        transform.rotate(radians);
-        transform.translate(-width / 2, -height / 2);
+        BufferedImage transparentImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
-        BufferedImage rotated = new BufferedImage(width, height, image.getType());
-        Graphics2D g2d = rotated.createGraphics();
-        g2d.drawImage(image, transform, null);
+        Graphics2D g2d = transparentImage.createGraphics();
+        AffineTransform transform = AffineTransform.getRotateInstance(radians, width / 2, height / 2);
+        g2d.setTransform(transform);
+        g2d.drawImage(image, 0, 0, null);
         g2d.dispose();
+    
+        BufferedImage finalImage = new BufferedImage(transparentImage.getWidth(), transparentImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D finalG2d = finalImage.createGraphics();
+        finalG2d.setComposite(AlphaComposite.Clear); // Set composite to clear the background
+        finalG2d.fillRect(0, 0, finalImage.getWidth(), finalImage.getHeight());
+        finalG2d.setComposite(AlphaComposite.Src); // Set composite to draw pixels normally
+        finalG2d.drawImage(transparentImage, 0, 0, null);
+        finalG2d.dispose();
 
-        return rotated;
+        return finalImage;
     }
 
     /**
@@ -182,10 +230,10 @@ public class dihedral
         int width = img.getWidth() + 2 * padding;
         int height = img.getHeight() + 2 * padding;
 
-        BufferedImage paddedImage = new BufferedImage(width, height, img.getType());
+        BufferedImage paddedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = paddedImage.createGraphics();
 
-        g2d.setColor(Color.WHITE); // set the padding color to white
+        g2d.setColor(new Color(0, 0, 0, 0)); // set the padding color to transparent
         g2d.fillRect(0, 0, width, height); // fill the padded image with white
         g2d.drawImage(img, padding, padding, null); // draw the original image onto the padded image
         g2d.dispose();
@@ -204,12 +252,12 @@ public class dihedral
     {
         int width = image.getWidth();
         int height = image.getHeight();
-    
+        double radians = Math.toRadians(degrees);
+
         // Calculates the distance between the center of the image and the farthest corner of the image
         double maxDistance = Math.sqrt((width / 2.0) * (width / 2.0) + (height / 2.0) * (height / 2.0));
     
         // Rotates the point representing the farthest corner by the desired angle of rotation
-        double radians = Math.toRadians(degrees);
         double rotatedX = (width / 2.0) * Math.abs(Math.cos(radians)) + (height / 2.0) * Math.abs(Math.sin(radians));
         double rotatedY = (height / 2.0) * Math.abs(Math.cos(radians)) + (width / 2.0) * Math.abs(Math.sin(radians));
     
@@ -228,7 +276,7 @@ public class dihedral
      *
      * @param paddedImage the padded image
      * @param paddingValue the value by which the image was padded
-     * @return original image wuthiyt padding
+     * @return original image wiht padding
      */
     public static BufferedImage cropImage(BufferedImage paddedImage, int paddingValue) 
     {
@@ -258,5 +306,7 @@ public class dihedral
                 if (!file.isDirectory())
                     file.delete();  
     }
+
+    
 }
 
